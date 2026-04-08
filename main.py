@@ -7,7 +7,7 @@ Receives invoice PDFs, orchestrates the 3-step pipeline:
   3. Validate (deterministic checks)
 
 Run with:
-    uvicorn api:app --reload --port 8000
+    uvicorn main:app --reload --port 8000
 """
 
 import os

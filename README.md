@@ -63,7 +63,7 @@ You only need one command to run the whole unified application:
 
 ```bash
 source .venv/bin/activate
-uvicorn api:app --reload --port 8000
+uvicorn main:app --reload --port 8000
 ```
 
 *The App should now automatically serve the frontend in your web browser at `http://127.0.0.1:8000`. Navigate there directly!*

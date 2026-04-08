@@ -49,4 +49,4 @@ Extract structured data from uploaded PDF invoices using a Gemini-powered cloud 
 ## Environment
 - `GEMINI_API_KEY` in `.env` (required).
 - `GEMINI_MODEL` configured centrally in `.env`.
-- No separate process is required outside `uvicorn api:app --reload`.
+- No separate process is required outside `uvicorn main:app --reload`.
