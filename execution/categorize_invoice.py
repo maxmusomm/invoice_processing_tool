@@ -14,6 +14,7 @@ Usage as LangChain tool:
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
+import os
 
 # ── Accounting categories ────────────────────────────────────
 CATEGORIES = [
@@ -67,7 +68,8 @@ def categorize_rule_based(vendor: str, items_text: str) -> str:
 def categorize_with_gemini(vendor: str, items_text: str, total: float) -> str:
     """Use Gemini for intelligent categorization via ChatGoogleGenerativeAI."""
     try:
-        llm = ChatGoogleGenerativeAI(model="gemini-3.1-flash-lite-preview", temperature=0)
+        model_name = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
+        llm = ChatGoogleGenerativeAI(model=model_name, temperature=0)
         prompt = CATEGORIZATION_PROMPT.format(
             vendor=vendor,
             items_text=items_text,

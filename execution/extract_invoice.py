@@ -25,8 +25,9 @@ load_dotenv()
 # ── Gemini model ──────────────────────────────────────────────
 # Docs: use `api_key` param (not `google_api_key`)
 # Env var GOOGLE_API_KEY is also auto-detected
+model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 GEMINI_MODEL = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash-lite",
+    model=model_name,
     api_key=os.getenv("GEMINI_API_KEY"),
     temperature=0,
     max_retries=2,
