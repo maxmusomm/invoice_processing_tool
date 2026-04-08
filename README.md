@@ -1,19 +1,19 @@
 # Agentic Invoice Processing Workflow
 
-An AI-powered application that turns raw PDF invoices into processed, categorized data. It employs a fully native Streamlit agentic workflow leveraging Google's Gemini models for high-reasoning multimodal extraction and fast cloud-based categorization.
+An AI-powered application that turns raw PDF invoices into processed, categorized data. It employs a fully native FastAPI agentic workflow leveraging Google's Gemini models for high-reasoning multimodal extraction and fast cloud-based categorization.
 
 ## 🚀 How It Works (High Level)
 
-1. **Upload via UI**: The user uploads one or more PDF invoices via the native **Streamlit** frontend.
+1. **Upload via UI**: The user uploads one or more PDF invoices via the native **FastAPI HTML** frontend.
 2. **Extraction Agent (LLM 1)**: The application triggers a **Gemini 1.5 Flash** agent using LangChain. Gemini analyzes the invoice (multimodal task) and extracts the raw structured data (Vendor, Date, Total, Tax, Line Items) strictly as JSON.
 3. **Categorization Agent (LLM 2)**: The structured item data is forwarded to a secondary Gemini agent (**gemini-3.1-flash-lite-preview**). This agent intelligently assigns each item to an accounting category (e.g., Office, Travel, Software).
 4. **Agentic Validation**: The workflow performs checks on the results (e.g., verifying `Total = Subtotal + Tax`).
-5. **Human-In-The-Loop Review**: Extracted and categorized data is returned to the **Streamlit UI** where a human accountant can review the results, look out for flagged errors, and ultimately download the processed data as a `.csv` file.
+5. **Human-In-The-Loop Review**: Extracted and categorized data is returned to the **Web UI** where a human accountant can review the results, look out for flagged errors, and ultimately download the processed data as a `.csv` file.
 
 ## 🛠️ Tools & Tech Stack
 
 - **Python 3.10+** - Core language.
-- **Streamlit** - Interactive Frontend & Application Orchestrator.
+- **FastAPI** - Backend orchestration and Native Static UI serving.
 - **LangChain & LangGraph** - Orchestrates the LLM workflow and pipeline between agents.
 - **Gemini 1.5 Flash API** - Heavy lifting for Vision and multimodality extraction capabilities.
 - **Gemini 3.1 Flash Lite API** - Fast and lightweight LLM for text-based categorization.
@@ -23,9 +23,8 @@ An AI-powered application that turns raw PDF invoices into processed, categorize
 
 Because this architecture utilizes a **Pure Cloud Strategy** (Cloud API for both extraction and categorization), it is incredibly lightweight and can be deployed almost anywhere!
 
-1. **Hugging Face Spaces (Streamlit Template)**: Perfect for AI applications. It natively supports Streamlit and handles scaling automatically.
-2. **Streamlit Community Cloud**: Easiest 1-click deployment straight from your Github repo.
-3. **PaaS (Render / Railway / Heroku)**: Can easily be hosted utilizing standard Dockerfiles or Python buildpacks.
+1. **Docker Container**: Setup via simple uvicorn backend routing.
+2. **PaaS (Render / Railway / Heroku)**: Can easily be hosted utilizing standard Dockerfiles or Python buildpacks.
 
 ## ⚙️ Installation & Requirements
 
@@ -48,7 +47,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-*(Key libraries included: `streamlit`, `langchain`, `langchain-google-genai`, `pandas`)*
+*(Key libraries included: `fastapi`, `langchain`, `langchain-google-genai`, `pandas`)*
 
 ### 2. Configure Environment Variables
 
@@ -64,7 +63,7 @@ You only need one command to run the whole unified application:
 
 ```bash
 source .venv/bin/activate
-streamlit run app.py
+uvicorn api:app --reload --port 8000
 ```
 
-*The Streamlit App should now automatically open in your web browser at `http://localhost:8501`. If not, you can navigate there directly!*
+*The App should now automatically serve the frontend in your web browser at `http://127.0.0.1:8000`. Navigate there directly!*

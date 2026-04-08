@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice Processor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: sans-serif; background: #fff; color: #000; }
+        .table-auto th, .table-auto td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }
+    </style>
+</head>
+<body class="p-8 max-w-5xl mx-auto space-y-10">
+    <h1 class="text-3xl font-bold uppercase tracking-widest text-gray-800 border-b-2 border-gray-100 pb-4">invoice processor</h1>
+
+    <section class="space-y-4">
+        <div>
+            <label class="inline-block px-6 py-3 bg-gray-100 text-gray-800 font-bold border border-gray-300 rounded cursor-pointer hover:bg-gray-200 transition-colors">
+                Select PDF Invoices
+                <input type="file" id="file-upload" class="hidden" multiple accept=".pdf" />
+            </label>
+        </div>
+        
+        <div id="staging-area" class="hidden space-y-4 bg-gray-50 p-6 rounded border border-gray-200">
+            <h3 class="font-bold text-gray-700 uppercase tracking-wide text-sm">Files ready for processing</h3>
+            <ul id="staging-list" class="space-y-2"></ul>
+            <div class="pt-2">
+                <button id="process-btn" class="px-6 py-2 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700 transition-colors">
+                    Process Invoices
+                </button>
+            </div>
+            <div id="upload-status" class="hidden text-sm italic font-medium text-gray-600 py-2"></div>
+        </div>
+    </section>
+
+    <!-- Metrics Section -->
+    <section class="flex gap-12 border-t border-gray-100 pt-6">
+        <div>
+            <strong class="block text-xs text-gray-500 font-bold uppercase tracking-widest mb-1">Total Invoices</strong>
+            <span id="metric-total" class="text-3xl font-light text-gray-900">0</span>
+        </div>
+        <div>
+            <strong class="block text-xs text-gray-500 font-bold uppercase tracking-widest mb-1">Total Value</strong>
+            <span id="metric-value" class="text-3xl font-light text-gray-900">$0.00</span>
+        </div>
+    </section>
+
+    <!-- Table Section -->
+    <section>
+        <div class="flex justify-between items-end mb-4">
+            <h2 class="text-lg font-bold text-gray-800 uppercase tracking-widest">Results Ledger</h2>
+            <div class="space-x-2">
+                <button id="export-btn" class="text-sm px-4 py-2 font-bold bg-green-100 text-green-800 rounded hover:bg-green-200 transition-colors">Export CSV</button>
+                <button id="clear-btn" class="text-sm px-4 py-2 font-bold bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors">Clear Data</button>
+            </div>
+        </div>
+        
+        <div class="overflow-x-auto rounded border border-gray-200 bg-white">
+            <table class="table-auto w-full border-collapse">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="text-xs uppercase tracking-wider text-gray-500 font-bold">Vendor</th>
+                        <th class="text-xs uppercase tracking-wider text-gray-500 font-bold">Date</th>
+                        <th class="text-xs uppercase tracking-wider text-gray-500 font-bold">Category</th>
+                        <th class="text-xs uppercase tracking-wider text-gray-500 font-bold">Total Amount</th>
+                        <th class="text-xs uppercase tracking-wider text-gray-500 font-bold">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="ledger-table-body" class="divide-y divide-gray-100">
+                    <tr>
+                        <td colspan="5" class="text-center italic text-gray-500 py-8">No data yet.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <script>
+        const API_URL = window.location.origin;
+        let selectedFiles = [];
+        let stateInvoices = [];
+
+        // UI Elements
+        const fileInput = document.getElementById('file-upload');
+        const stagingArea = document.getElementById('staging-area');
+        const stagingList = document.getElementById('staging-list');
+        const processBtn = document.getElementById('process-btn');
+        const statusEl = document.getElementById('upload-status');
+
+        fileInput.addEventListener('change', (e) => {
+            Array.from(e.target.files).forEach(file => {
+                if (!selectedFiles.some(f => f.name === file.name)) {
+                    selectedFiles.push(file);
+                }
+            });
+            renderStaging();
+        });
+
+        function renderStaging() {
+            if (selectedFiles.length === 0) {
+                stagingArea.classList.add('hidden');
+                return;
+            }
+            stagingArea.classList.remove('hidden');
+            stagingList.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center bg-white p-3 border border-gray-200 rounded shadow-sm";
+                li.innerHTML = `
+                    <span class="text-sm font-medium text-gray-800">${file.name}</span>
+                    <button class="text-xs font-bold text-red-600 hover:text-red-800 uppercase tracking-wide px-2 py-1" onclick="removeFile(${index})">Remove</button>
+                `;
+                stagingList.appendChild(li);
+            });
+            processBtn.innerText = `Process ${selectedFiles.length} Invoice(s)`;
+        }
+
+        window.removeFile = (index) => {
+            selectedFiles.splice(index, 1);
+            renderStaging();
+        };
+
+        processBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return;
+            
+            statusEl.classList.remove('hidden');
+            processBtn.disabled = true;
+
+            const filesToProcess = [...selectedFiles];
+            selectedFiles = []; // Clear queue immediately
+            renderStaging();
+
+            let successCount = 0;
+            for (const file of filesToProcess) {
+                statusEl.innerText = `Processing ${file.name}...`;
+                const formData = new FormData();
+                formData.append("file", file);
+
+                try {
+                    const res = await fetch(`${API_URL}/process-invoice`, { method: "POST", body: formData });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert(`Error on ${file.name}: ${err.detail}`);
+                    } else {
+                        successCount++;
+                    }
+                } catch (err) {
+                    alert(`Upload failed for ${file.name}: ${err.message}`);
+                }
+            }
+
+            statusEl.innerText = `Finished processing ${successCount} files.`;
+            processBtn.disabled = false;
+            
+            await fetchInvoices();
+        });
+
+        // Backend logic
+        async function fetchInvoices() {
+            try {
+                const res = await fetch(`${API_URL}/invoices`);
+                if(res.ok) {
+                    const data = await res.json();
+                    stateInvoices = data.invoices || [];
+                    renderTable();
+                }
+            } catch (err) {
+                console.error("Failed to fetch invoices", err);
+            }
+        }
+
+        function renderTable() {
+            document.getElementById('metric-total').innerText = stateInvoices.length;
+            const totalValue = stateInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+            document.getElementById('metric-value').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalValue);
+
+            const tbody = document.getElementById('ledger-table-body');
+            
+            if (stateInvoices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center italic text-gray-500 py-8">No data yet.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            stateInvoices.forEach(inv => {
+                const isClean = !inv.flagged;
+                const statusColor = isClean ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50 font-bold';
+                const statusText = isClean ? 'Clean' : 'Flagged';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="font-medium text-gray-900">${inv.vendor || 'Unknown'}</td>
+                    <td class="text-sm text-gray-500">${inv.date || 'No Date'}</td>
+                    <td><span class="px-2 py-1 bg-gray-100 rounded text-xs font-semibold text-gray-600">${inv.category || 'Other'}</span></td>
+                    <td class="font-mono font-medium text-gray-800">$${(inv.total_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                    <td><span class="px-2 py-1 border rounded text-xs tracking-wide uppercase ${statusColor}">${statusText}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Action buttons
+        document.getElementById('clear-btn').addEventListener('click', async () => {
+            if(!confirm("Clear all data?")) return;
+            await fetch(`${API_URL}/invoices`, { method: "DELETE" });
+            fetchInvoices();
+        });
+
+        document.getElementById('export-btn').addEventListener('click', () => {
+            if (!stateInvoices.length) return alert("No data");
+            const headers = ["vendor", "date", "category", "total_amount", "flagged", "item_description", "item_amount"];
+            let csv = headers.join(",") + "\n";
+            
+            stateInvoices.forEach(inv => {
+                const base = [inv.vendor, inv.date, inv.category, inv.total_amount, inv.flagged].map(v => `"${(v||'').toString().replace(/"/g, '""')}"`);
+                
+                if (inv.items && inv.items.length) {
+                    inv.items.forEach(it => {
+                        csv += base.join(",") + "," + `"${(it.description||'').replace(/"/g, '""')}"` + "," + (it.amount||0) + "\n";
+                    });
+                } else {
+                    csv += base.join(",") + ",\n";
+                }
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'invoices.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        fetchInvoices();
+    </script>
+</body>
+</html>

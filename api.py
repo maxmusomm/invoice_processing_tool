@@ -16,10 +16,10 @@ import json
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 
 from execution.extract_invoice import extract_invoice_from_bytes
-from execution.categorize_invoice import categorize_with_ollama, categorize_rule_based
+from execution.categorize_invoice import categorize_with_gemini, categorize_rule_based
 from execution.validate_invoice import validate_invoice
 from execution.schemas import ExtractedInvoice
 
@@ -46,6 +46,11 @@ TMP_DIR = Path(".tmp")
 TMP_DIR.mkdir(exist_ok=True)
 
  
+
+@app.get("/")
+async def serve_frontend():
+    with open("frontend/index.html", "r") as f:
+        return HTMLResponse(content=f.read())
 
 @app.post("/process-invoice")
 async def process_invoice(file: UploadFile = File(...)):
@@ -78,9 +83,9 @@ async def process_invoice(file: UploadFile = File(...)):
     # ── Step 2: Categorization ───────────────────────────────
     items_text = ", ".join(item.description for item in invoice.items) if invoice.items else ""
     try:
-        category = categorize_with_ollama(invoice.vendor, items_text, invoice.total_amount)
+        category = categorize_with_gemini(invoice.vendor, items_text, invoice.total_amount)
     except Exception:
-        # Fallback to rule-based if Ollama is completely down
+        # Fallback to rule-based if Gemini is completely down
         category = categorize_rule_based(invoice.vendor, items_text)
 
     invoice.category = category
